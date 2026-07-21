@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Shivi Bhatia — clinical NLP evaluation, agentic retrieval, sequential stopping</title>
+<meta name="description" content="Research on inference-time orchestration for clinical AI: sequential stopping, agentic retrieval, and evaluation of LLM systems in regulated healthcare settings.">
+<meta name="author" content="Shivi Bhatia">
+
+<meta property="og:type" content="profile">
+<meta property="og:title" content="Shivi Bhatia — clinical NLP evaluation, agentic retrieval, sequential stopping">
+<meta property="og:description" content="An agentic system for continued-stay authorization that reads clinical documents one at a time and stops on an SPRT boundary.">
+<meta property="og:url" content="https://shivi1982.github.io/">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;600;700&family=IBM+Plex+Serif:ital,wght@0,300;0,400;1,300&display=swap" rel="stylesheet">
+
+<style>
+:root{
+  --ground:#E6EAEC;
+  --panel:#F2F5F6;
+  --ink:#111C24;
+  --mid:#5C6E79;
+  --hair:#C3CDD3;
+  --signal:#A9660C;
+  --measure:68ch;
+}
+
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{
+  margin:0;
+  background:var(--ground);
+  color:var(--ink);
+  font-family:"IBM Plex Serif",Georgia,serif;
+  font-weight:300;
+  font-size:17px;
+  line-height:1.62;
+  -webkit-font-smoothing:antialiased;
+}
+
+.wrap{max-width:860px;margin:0 auto;padding:0 28px}
+
+/* ---- utility type ---- */
+.eyebrow{
+  font-family:"IBM Plex Mono",monospace;
+  font-size:11px;
+  font-weight:500;
+  letter-spacing:.16em;
+  text-transform:uppercase;
+  color:var(--mid);
+}
+
+h1,h2,h3{font-family:"IBM Plex Sans",system-ui,sans-serif;font-weight:600;letter-spacing:-.02em;line-height:1.15;margin:0}
+
+/* ---- masthead ---- */
+header{padding:64px 0 0}
+.name{font-size:15px;font-family:"IBM Plex Sans",sans-serif;font-weight:700;letter-spacing:-.01em}
+.role{font-family:"IBM Plex Mono",monospace;font-size:12px;color:var(--mid);margin-top:2px}
+
+h1{font-size:clamp(30px,5.2vw,46px);margin:38px 0 0;max-width:22ch}
+.standfirst{
+  margin:20px 0 0;
+  max-width:var(--measure);
+  font-size:19px;
+  color:#22323D;
+}
+
+/* ---- signature: the evidence walk ---- */
+.walk{
+  margin:52px 0 0;
+  background:var(--panel);
+  border:1px solid var(--hair);
+  padding:26px 22px 18px;
+}
+.walk figcaption{
+  font-family:"IBM Plex Mono",monospace;
+  font-size:11.5px;
+  color:var(--mid);
+  line-height:1.6;
+  margin-top:16px;
+  padding-top:14px;
+  border-top:1px solid var(--hair);
+}
+svg{display:block;width:100%;height:auto}
+
+.axis{stroke:var(--hair);stroke-width:1}
+.bound{stroke:var(--signal);stroke-width:1;stroke-dasharray:3 4;opacity:.75}
+.blabel{font-family:"IBM Plex Mono",monospace;font-size:9px;fill:var(--signal)}
+.tick{font-family:"IBM Plex Mono",monospace;font-size:9px;fill:var(--mid)}
+.unread{fill:var(--hair)}
+.trace{fill:none;stroke:var(--ink);stroke-width:2;stroke-linejoin:round;stroke-linecap:round}
+.node{fill:var(--ink)}
+.stop{fill:var(--signal)}
+.stoplabel{font-family:"IBM Plex Mono",monospace;font-size:10px;fill:var(--signal);font-weight:500}
+
+@media (prefers-reduced-motion:no-preference){
+  .trace{stroke-dasharray:var(--len);stroke-dashoffset:var(--len);animation:draw 1.5s .35s cubic-bezier(.5,0,.2,1) forwards}
+  .node,.stop,.stoplabel{opacity:0;animation:pop .3s forwards}
+  .node:nth-of-type(1){animation-delay:.45s}
+  .node:nth-of-type(2){animation-delay:.75s}
+  .node:nth-of-type(3){animation-delay:1.05s}
+  .stop{animation-delay:1.5s}
+  .stoplabel{animation-delay:1.7s}
+}
+@keyframes draw{to{stroke-dashoffset:0}}
+@keyframes pop{to{opacity:1}}
+
+/* ---- sections ---- */
+section{padding:60px 0 0}
+h2{font-size:13px;font-family:"IBM Plex Mono",monospace;font-weight:500;letter-spacing:.16em;text-transform:uppercase;color:var(--mid);padding-bottom:12px;border-bottom:1px solid var(--hair)}
+section p{max-width:var(--measure);margin:22px 0 0}
+
+/* ---- works ---- */
+.work{
+  display:grid;
+  grid-template-columns:120px 1fr;
+  gap:0 24px;
+  padding:24px 0;
+  border-bottom:1px solid var(--hair);
+}
+.kind{font-family:"IBM Plex Mono",monospace;font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--mid);padding-top:5px}
+.work h3{font-size:19px;font-weight:600}
+.work p{margin:7px 0 0;font-size:16px;color:#2A3A45;max-width:58ch}
+.links{margin-top:10px;font-family:"IBM Plex Mono",monospace;font-size:12px}
+.links a{margin-right:16px;display:inline-block}
+.status{color:var(--signal)}
+
+a{color:var(--ink);text-decoration:none;border-bottom:1px solid var(--signal);padding-bottom:1px}
+a:hover{background:rgba(169,102,12,.1)}
+a:focus-visible{outline:2px solid var(--signal);outline-offset:3px}
+
+/* ---- citation ---- */
+pre{
+  background:var(--panel);
+  border:1px solid var(--hair);
+  border-left:2px solid var(--signal);
+  padding:18px 20px;
+  overflow-x:auto;
+  font-family:"IBM Plex Mono",monospace;
+  font-size:12.5px;
+  line-height:1.7;
+  margin:22px 0 0;
+}
+
+footer{
+  margin-top:64px;
+  padding:26px 0 72px;
+  border-top:1px solid var(--hair);
+  font-family:"IBM Plex Mono",monospace;
+  font-size:12px;
+  color:var(--mid);
+}
+footer a{color:var(--mid);border-bottom-color:var(--hair)}
+
+@media (max-width:620px){
+  body{font-size:16px}
+  .work{grid-template-columns:1fr;gap:6px}
+  .kind{padding-top:0}
+  .wrap{padding:0 20px}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <div class="name">Shivi Bhatia</div>
+  <div class="role">Independent researcher · ORCID 0009-0003-5845-2405</div>
+
+  <h1>Reading less, and knowing when to stop.</h1>
+
+  <p class="standfirst">Continued-stay authorization in behavioral health normally means reviewing every document in a patient's chart. This system reads them one at a time, ranks what to read next, accumulates evidence as a likelihood ratio, and halts the moment the evidence crosses a decision boundary. In practice it stops after four of eleven document types.</p>
+
+  <figure class="walk">
+    <svg viewBox="0 0 700 260" role="img" aria-label="Log-likelihood ratio accumulating across four documents and crossing the upper SPRT boundary at document four, with seven document types left unread.">
+      <!-- boundaries -->
+      <line class="bound" x1="60" y1="42" x2="670" y2="42"/>
+      <line class="bound" x1="60" y1="206" x2="670" y2="206"/>
+      <text class="blabel" x="60" y="34">A — approve</text>
+      <text class="blabel" x="60" y="222">B — deny</text>
+
+      <!-- centre / zero -->
+      <line class="axis" x1="60" y1="124" x2="670" y2="124"/>
+      <text class="tick" x="30" y="128">Λ=0</text>
+
+      <!-- unread document markers -->
+      <g class="unread">
+        <rect x="316" y="120" width="7" height="9"/>
+        <rect x="366" y="120" width="7" height="9"/>
+        <rect x="416" y="120" width="7" height="9"/>
+        <rect x="466" y="120" width="7" height="9"/>
+        <rect x="516" y="120" width="7" height="9"/>
+        <rect x="566" y="120" width="7" height="9"/>
+        <rect x="616" y="120" width="7" height="9"/>
+      </g>
+      <text class="tick" x="316" y="150">7 document types never read</text>
+
+      <!-- the walk -->
+      <path class="trace" style="--len:340" d="M 66 124 L 128 96 L 190 104 L 252 62 L 290 38"/>
+
+      <circle class="node" cx="128" cy="96" r="3.5"/>
+      <circle class="node" cx="190" cy="104" r="3.5"/>
+      <circle class="node" cx="252" cy="62" r="3.5"/>
+      <circle class="stop" cx="290" cy="38" r="5.5"/>
+      <text class="stoplabel" x="302" y="34">stop · doc 4</text>
+
+      <text class="tick" x="118" y="176">1</text>
+      <text class="tick" x="180" y="176">2</text>
+      <text class="tick" x="242" y="176">3</text>
+      <text class="tick" x="282" y="176">4</text>
+      <text class="tick" x="60" y="176">documents read →</text>
+    </svg>
+    <figcaption>Sequential probability ratio test. Evidence from each document is scored as a log-likelihood ratio and summed; review terminates when the running total crosses either boundary, rather than after a fixed number of documents. Boundaries are set from target error rates, so the stopping rule carries an explicit statistical guarantee instead of a heuristic cutoff.</figcaption>
+  </figure>
+</header>
+
+<section>
+  <h2>What the system does</h2>
+  <p>An LLM ranks which document type is likely to be most informative next, given what has already been read. A Python likelihood accumulator — not the model — holds the evidence state and applies the stopping rule. Separating the two matters: the ranking is a heuristic that can be wrong without compromising the decision, because the accumulation and the boundary are deterministic and auditable.</p>
+  <p>The design target is documentation burden. Clinical staff assemble authorization packets by hand, and most of that assembly is spent on documents that do not move the decision. Reading four of eleven, with a stated error bound, is the claim under evaluation.</p>
+</section>
+
+<section>
+  <h2>Work</h2>
+
+  <div class="work">
+    <div class="kind">Poster · 2026</div>
+    <div>
+      <h3>Agentic AI for Clinical Decision-Making</h3>
+      <p>Sequential evidence accumulation for continued-stay authorization: an LLM ranks which document to read next, evidence is summed as a log-likelihood ratio, and review halts on an SPRT boundary. Berkeley AI Summit 2026.</p>
+      <div class="links"><a href="walkthrough.html">System walkthrough</a><span class="status">Code release pending</span></div>
+    </div>
+  </div>
+
+  <div class="work">
+    <div class="kind">Poster · 2026</div>
+    <div>
+      <h3>The Authorization Bottleneck: Can Large Language Models Break Through?</h3>
+      <p>An evaluation engine for clinical LLM output. Ground-truth validation over text, dates, and rating instruments, paired with an LLM-judge module, applied as an audit of what an unvalidated system would have handed a clinician unflagged. Implemented as the <em>clinical-ground-truth</em> package. AMIA 2026, accepted.</p>
+      <div class="links"><span class="status">Presented November 2026 · code release pending</span></div>
+    </div>
+  </div>
+
+  <div class="work">
+    <div class="kind">Dataset</div>
+    <div>
+      <h3>ClinAuthBench</h3>
+      <p>180 synthetic inpatient psychiatric authorization cases with gold labels, built through a two-pass PHI screening and label-alignment pipeline. Intended for evaluating grounding and hallucination in clinical decision support.</p>
+      <div class="links"><a href="HF_URL">Hugging Face</a><a href="GH_URL">GitHub</a><span class="status">DOI pending</span></div>
+    </div>
+  </div>
+
+  </section>
+
+<section>
+  <h2>Citing this work</h2>
+  <pre>@misc{bhatia2026sequential,
+  author = {Bhatia, Shivi},
+  title  = {Agentic AI for Clinical Decision-Making},
+  year   = {2026},
+  note   = {Poster, Berkeley AI Summit 2026},
+  url    = {https://shivi1982.github.io/}
+}</pre>
+  <p>Archival DOIs are being minted through Zenodo; this block will be replaced with the versioned record once available.</p>
+</section>
+
+<section>
+  <h2>Contact</h2>
+  <p>Open to collaboration on evaluation of agentic clinical systems, sequential stopping criteria, and retrieval under evidence constraints. Reviewing for AMIA.</p>
+</section>
+
+<footer>
+  <a href="https://orcid.org/0009-0003-5845-2405">ORCID</a> ·
+  <a href="https://github.com/Shivi1982">GitHub</a> ·
+  <a href="HF_PROFILE">Hugging Face</a>
+</footer>
+
+</div>
+</body>
+</html>
